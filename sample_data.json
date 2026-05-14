@@ -1,0 +1,72 @@
+[
+  {
+    "title": "Unreal Engine vs Unity WebGL Pivot Discussion",
+    "mapping": {
+      "node_1": {
+        "message": {
+          "author": { "role": "user" },
+          "content": {
+            "parts": [
+              "We need to outline the engine decision for CampusVerse. Our target demographic is public schools where students use low-end chromebooks. Unreal Engine 5 looks beautiful but pixel streaming from the cloud is costing us way too much in server fees (estimated $1.50 per user per hour). How can we optimize WebGL browser builds?"
+            ]
+          }
+        }
+      },
+      "node_2": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": {
+            "parts": [
+              "Unreal Engine 5 has officially deprecated direct WebGL compilation templates. If we want to compile local, client-side web binaries that execute on the student's browser cycles, we should migrate the client from Unreal to Unity Engine. Unity has native WebGL target builders that optimize draw calls, compile directly to WebAssembly, and bypass cloud GPU pixel streaming costs completely. I suggest we pivot the client to Unity immediately."
+            ]
+          }
+        }
+      },
+      "node_3": {
+        "message": {
+          "author": { "role": "user" },
+          "content": {
+            "parts": [
+              "That is a huge pivot, but makes total sense for school budgets. Let's make the decision: Migrate client to Unity to ensure Chromebook accessibility. We will also adopt direct WebGL canvas builds instead of pixel streaming."
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    "title": "WebGL Memory Limit Blocker & Local AI Teachers",
+    "mapping": {
+      "node_4": {
+        "message": {
+          "author": { "role": "user" },
+          "content": {
+            "parts": [
+              "We are running into browser tab crashes when launching the Unity WebGL sandbox. The heap memory limit seems to hit a 1GB ceiling on Chrome. How do we resolve this?"
+            ]
+          }
+        }
+      },
+      "node_5": {
+        "message": {
+          "author": { "role": "assistant" },
+          "content": {
+            "parts": [
+              "This blocker is caused by large static audio and high-resolution texture assets being loaded into memory at startup. We should set up Unity Addressables to stream audio/textures dynamically from an external server rather than compiling them in the core WebGL bundle. Also, we want to integrate AI Teachers. How should the virtual classroom NPCs interact with our local Ollama servers?"
+            ]
+          }
+        }
+      },
+      "node_6": {
+        "message": {
+          "author": { "role": "user" },
+          "content": {
+            "parts": [
+              "Let's make a task to configure Unity Addressables for our audio assets. For the AI teachers, we can deploy a local classroom websocket connector that bridges our browser client to the Ollama endpoint. Let's list an open question: How to handle credential storage safely for local Ollama deployments in offline school environments?"
+            ]
+          }
+        }
+      }
+    }
+  }
+]

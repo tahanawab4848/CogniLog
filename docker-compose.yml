@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # 1. Relational database
+  db:
+    image: postgres:15-alpine
+    container_name: chronicle_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: chronicle
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 2. Graph database
+  neo4j:
+    image: neo4j:5.18.0-community
+    container_name: chronicle_neo4j
+    restart: always
+    ports:
+      - "7474:7474" # Neo4j Browser
+      - "7687:7687" # Bolt Protocol
+    environment:
+      - NEO4J_AUTH=neo4j/password
+    volumes:
+      - neo4j_data:/data
+
+  # 3. Vector Database
+  chroma:
+    image: chromadb/chroma:0.4.24
+    container_name: chronicle_chroma
+    restart: always
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/data
+
+  # 4. Backend Service
+  backend:
+    build: ./backend
+    container_name: chronicle_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/chronicle
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=password
+      - FORCE_MOCK_AI=true # Toggle to false when supplying OPENAI_API_KEY/GEMINI_API_KEY
+      - SECRET_KEY=prod-secret-chronicle-key-change-it
+    depends_on:
+      - db
+      - neo4j
+      - chroma
+
+  # 5. Frontend Service
+  frontend:
+    build: ./frontend
+    container_name: chronicle_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  chroma_data:
