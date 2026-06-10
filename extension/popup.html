@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Chronicle Bridge</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card: rgba(17,24,39,0.8);
+      --primary: #6366f1;
+      --purple: #8b5cf6;
+      --border: rgba(255,255,255,0.07);
+      --muted: #94a3b8;
+      --text: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 390px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); padding: 14px;
+    }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius:4px; }
+
+    .header {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:13px; padding-bottom:11px; border-bottom:1px solid var(--border);
+    }
+    .logo-row { display:flex; align-items:center; gap:8px; }
+    .logo-img { width:22px; height:22px; border-radius:6px; }
+    .title {
+      font-size:15px; font-weight:800;
+      background:linear-gradient(to right,#818cf8,#a78bfa);
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    }
+    .subtitle { font-size:9px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
+
+    .badge { font-size:9px; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:4px; }
+    .badge-offline { background:rgba(234,179,8,.1); border:1px solid rgba(234,179,8,.2); color:#fef08a; }
+    .badge-online  { background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.2); color:#6ee7b7; }
+
+    /* Toast */
+    .toast { font-size:11px; padding:9px 11px; border-radius:7px; margin-bottom:11px; display:none; line-height:1.5; word-break:break-word; }
+    .toast-success { background:rgba(16,185,129,.1); border:1px solid rgba(16,185,129,.2); color:#34d399; }
+    .toast-error   { background:rgba(239,68,68,.1);  border:1px solid rgba(239,68,68,.2);  color:#f87171; }
+    .toast-info    { background:rgba(99,102,241,.1); border:1px solid rgba(99,102,241,.2); color:#a5b4fc; }
+
+    /* Cards */
+    .card { background:var(--card); border:1px solid var(--border); border-radius:11px; padding:13px; margin-bottom:11px; backdrop-filter:blur(12px); }
+    .card-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.9px; color:var(--muted); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+
+    /* Forms */
+    .fg { margin-bottom:9px; }
+    .fg:last-child { margin-bottom:0; }
+    label { display:block; font-size:10px; text-transform:uppercase; color:var(--muted); margin-bottom:4px; font-weight:600; }
+    input { width:100%; background:rgba(0,0,0,.3); border:1px solid var(--border); border-radius:6px; color:#fff; font-size:11px; padding:7px 9px; outline:none; transition:border-color .2s; }
+    input:focus { border-color:var(--primary); }
+
+    /* Buttons */
+    .btn { width:100%; border:none; border-radius:7px; font-size:12px; font-weight:600; cursor:pointer; padding:9px; display:flex; align-items:center; justify-content:center; gap:6px; transition:opacity .15s,transform .1s; }
+    .btn:active { transform:scale(.98); }
+    .btn:disabled { background:#1e293b !important; color:#475569; cursor:not-allowed; transform:none; }
+    .btn-primary { background:linear-gradient(to right,var(--primary),var(--purple)); color:#fff; }
+    .btn-secondary { background:rgba(99,102,241,.12); border:1px solid rgba(99,102,241,.25); color:#a5b4fc; }
+    .btn-secondary:hover:not(:disabled) { background:rgba(99,102,241,.22); }
+    .mt8 { margin-top:8px; } .mt6 { margin-top:6px; }
+
+    /* Progress */
+    #progress-section { margin-bottom:9px; display:none; }
+    .progress-track { background:rgba(255,255,255,.05); border-radius:999px; height:6px; overflow:hidden; margin-bottom:5px; }
+    #progress-bar { height:100%; background:linear-gradient(to right,var(--primary),var(--purple)); border-radius:999px; width:0%; transition:width .4s ease; }
+
+    /* Preview */
+    .preview { max-height:100px; overflow-y:auto; background:rgba(0,0,0,.2); border:1px solid var(--border); border-radius:6px; padding:8px; font-size:10px; color:#cbd5e1; }
+    .preview-row { display:flex; align-items:baseline; gap:4px; margin-bottom:4px; line-height:1.35; }
+    .preview-row:last-child { margin-bottom:0; }
+    .tag { font-weight:700; font-size:9px; text-transform:uppercase; flex-shrink:0; }
+    .tag-conv { color:#38bdf8; }
+
+    /* Info panel */
+    .info-panel { text-align:center; padding:22px 14px; font-size:12px; color:var(--muted); line-height:1.6; }
+    .info-panel strong { color:#c7d2fe; }
+    .user-info { font-size:10px; color:#34d399; font-weight:600; margin-top:6px; }
+
+    /* Log box */
+    #log-box { font-size:10px; color:#94a3b8; background:rgba(0,0,0,.25); border:1px solid var(--border); border-radius:6px; padding:8px; max-height:80px; overflow-y:auto; margin-top:8px; display:none; font-family:monospace; }
+
+    .loader { width:11px; height:11px; border:2px solid #fff; border-bottom-color:transparent; border-radius:50%; display:inline-block; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo-row">
+    <img src="icon.png" class="logo-img" alt="">
+    <div>
+      <div class="title">Chronicle Bridge</div>
+      <div class="subtitle">AI History Extractor</div>
+    </div>
+  </div>
+  <span id="status-badge" class="badge badge-offline">Offline</span>
+</div>
+
+<!-- Toast -->
+<div id="status-toast" class="toast"></div>
+
+<!-- Server & Auth -->
+<div class="card">
+  <div class="card-title">Chronicle Server</div>
+  <div class="fg">
+    <label>Server URL</label>
+    <input id="server-url" type="text" value="http://127.0.0.1:8000" placeholder="http://127.0.0.1:8000">
+  </div>
+  <div id="login-fields" style="display:none">
+    <div class="fg mt6">
+      <label>Email</label>
+      <input id="auth-email" type="email" placeholder="user@example.com">
+    </div>
+    <div class="fg">
+      <label>Password</label>
+      <input id="auth-password" type="password" placeholder="••••••••">
+    </div>
+    <button id="btn-login" class="btn btn-secondary mt8" style="padding:6px;font-size:11px">Sign in to Chronicle</button>
+  </div>
+  <div id="connected-user" style="display:none">
+    <div class="user-info">✓ Signed in: <span id="user-display"></span></div>
+  </div>
+</div>
+
+<!-- Extract + Sync (shown only on AI portals) -->
+<div class="card" id="card-main" style="display:none">
+  <div class="card-title">
+    Conversation History
+    <span id="scraped-count" style="font-size:9px;color:#a78bfa;font-weight:normal">Not extracted</span>
+  </div>
+
+  <div class="fg">
+    <label>Export Label</label>
+    <input id="chat-title" type="text" placeholder="My ChatGPT History">
+  </div>
+
+  <!-- Progress -->
+  <div id="progress-section">
+    <div class="progress-track"><div id="progress-bar"></div></div>
+    <div id="progress-label" style="font-size:9px;color:var(--muted)">Preparing…</div>
+  </div>
+
+  <button id="btn-extract" class="btn btn-secondary mt6">Extract Full History</button>
+
+  <!-- Preview -->
+  <div id="preview-wrap" style="display:none;margin-top:10px">
+    <label style="margin-bottom:6px">Preview</label>
+    <div id="preview-container" class="preview"></div>
+  </div>
+
+  <!-- Debug log (shown on error) -->
+  <div id="log-box"></div>
+
+  <button id="btn-sync" class="btn btn-primary mt8" disabled>
+    <span id="sync-loader" class="loader" style="display:none"></span>
+    <span id="sync-text">Send to Chronicle Inbox</span>
+  </button>
+  <div style="font-size:9px;color:#475569;text-align:center;margin-top:5px">
+    Data goes to your <strong style="color:#64748b">Chronicle Inbox</strong> — no project selection needed
+  </div>
+</div>
+
+<!-- Not on AI portal -->
+<div class="card" id="card-no-portal">
+  <div class="info-panel">
+    Open a conversation on<br>
+    <strong>ChatGPT</strong>, <strong>Claude</strong>, or <strong>Gemini</strong><br>
+    then click the extension icon.
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
