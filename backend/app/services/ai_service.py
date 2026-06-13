@@ -9,17 +9,17 @@ logger = logging.getLogger(__name__)
 # System prompts stored inside the service modules as requested
 EXTRACTION_PROMPT = """
 You are an expert AI knowledge extraction agent.
-Your task is to analyze the provided text (which could be chat transcripts, project notes, or PDFs) and extract structured knowledge for "Project Chronicle".
+Your task is to analyze the provided text (which could be chat transcripts, research notes, story drafts, or PDFs) and extract structured knowledge for our Universal Knowledge Engine.
 
 Analyze the text and extract:
-1. Project Name (What is the overarching project or application name discussed? If not explicitly clear, generate a brief appropriate title).
-2. Ideas: New concepts, features, or design directions.
-3. Topics: High level categories or areas of interest.
-4. Decisions: Decisions made, including their justification/reasons, evidence (e.g. quotes or conversation mentions), status (active, superseded, proposed), and date.
-5. Events: Key chronological points such as milestones, Pivots, blockages, or launch dates.
-6. Goals: High-level achievements planned.
-7. Tasks: Action items, status (todo, in_progress, done), and assignee if mentioned.
-8. Open Questions: Unresolved issues, challenges, or questions raised.
+1. Project Name (What is the overarching subject, universe, or project name discussed? If not explicitly clear, generate a brief appropriate title).
+2. Ideas: New concepts, theories, features, or creative directions.
+3. Topics: High-level categories, themes, or areas of interest.
+4. Decisions: Key conclusions reached, facts established, or decisions made, including their justification/reasons, evidence (e.g. quotes or conversation mentions), status (active, superseded, proposed), and date.
+5. Events: Key chronological points such as milestones, historical events, pivots, or launch dates.
+6. Goals: High-level achievements, objectives, or research targets.
+7. Tasks: Action items, next steps, or todo items, status (todo, in_progress, done), and assignee if mentioned.
+8. Open Questions: Unresolved issues, challenges, knowledge gaps, or questions raised.
 
 You must return a valid JSON object matching the following structure:
 {
@@ -37,16 +37,16 @@ Ensure all dates are formatted as YYYY-MM-DD if possible, or simple textual appr
 """
 
 HISTORIAN_PROMPT = """
-You are the "AI Historian" for Project Chronicle.
-You have access to the project's timeline events, decisions, open questions, and raw document contents.
-Your task is to answer the user's query about the project's history, origin, evolution, and future.
+You are the "AI Historian" and Insight Engine for this Knowledge Base.
+You have access to the domain's timeline events, key conclusions, open questions, and raw document contents.
+Your task is to answer the user's query about the history, origin, evolution, and future of this subject.
 
 Answer in a structured markdown format including:
-1. **Origin Story**: How the project started.
+1. **Origin / Background**: How this subject or project started.
 2. **Evolution & Major Milestones**: Progression over time.
-3. **Key Decisions & Rationale**: Pivotal architectural or design decisions and the reasoning behind them.
-4. **Current State & Unresolved Challenges**: What is currently being worked on and what questions remain open.
-5. **Future Directions**: Recommendations or trends visible in the project.
+3. **Key Conclusions & Rationale**: Pivotal decisions, facts established, or design choices and the reasoning behind them.
+4. **Current State & Unresolved Challenges**: What is currently being explored and what questions remain open.
+5. **Future Directions**: Recommendations or trends visible in the context.
 
 Context:
 ---
@@ -60,12 +60,12 @@ Query: {query}
 """
 
 PREDICTION_PROMPT = """
-Analyze the project history, decisions, open questions, and goals.
+Analyze the subject history, key conclusions, open questions, and objectives.
 Predict the following:
-1. Potential blockers (technical, organizational, or resource-related).
-2. Likely next tasks that must be accomplished.
-3. Missing requirements (things discussed but not planned or resolved).
-4. Similar previous project patterns or lessons learned.
+1. Potential blockers (technical, logical, organizational, or resource-related).
+2. Likely next action items or steps that must be accomplished.
+3. Missing requirements (things discussed or implied but not planned or resolved).
+4. Similar patterns, themes, or lessons learned.
 
 Return a JSON object:
 {{
