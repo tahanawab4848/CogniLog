@@ -1,21 +1,22 @@
-# ⏳ CogniLog – AI Knowledge Evolution Engine
+# ⏳ CogniLog – AI Chat Knowledge Extraction Engine
 
-CogniLog is a production-grade AI Knowledge Evolution Engine designed to ingest conversation histories, documentation files, and markdown notes, translating them into cohesive chronological timelines, decision maps, and interactive concept graphs.
+**CogniLog** is a production-grade platform built specifically to solve a modern development problem: **making sense of your endless AI conversations**. 
 
-Think of it as **GitHub for ideas**—capturing not just where a project stands today, but how it evolved, why pivot choices were made, and what challenges remain unresolved.
+It is designed primarily to ingest, analyze, and index your chat histories from **ChatGPT, Claude, and Gemini**. Instead of letting valuable brainstorming sessions, coding decisions, and architectural pivots get lost in long chat threads, CogniLog automatically extracts these insights and transforms them into cohesive chronological timelines, decision maps, and interactive concept graphs.
+
+While it also supports traditional documentation (PDFs, Markdown), its core purpose is acting as a **Knowledge Graph for your AI interactions**—capturing exactly how your ideas evolved alongside your AI assistants, logging why technical pivots were made, and mapping out the DNA of your projects.
 
 ---
 
-## 🚀 Key Features
+## 🚀 Primary Focus & Key Features
 
+* **AI Chat Ingestion & Scraping**: Purpose-built to ingest JSON exports from ChatGPT, Claude, and Gemini. Includes the custom **CogniLog Bridge browser extension** to instantly scrape and sync active live chats directly to your workspace.
+* **AI Knowledge Extraction**: Automatically parses unstructured chat threads to extract distinct ideas, topics, architectural decisions, chronological milestones, and pending tasks using OpenAI, Gemini, or local Ollama pipelines.
+* **Chronicle Timeline Engine**: Visualizes the progression of your project based on your chat history (Creations, Pivots, Milestones, Blockers) using elegant, responsive line markers.
+* **Interactive Knowledge Graph**: Maps the relationships between concepts discussed in your AI chats using React Flow, letting you drag nodes, trace linkages, and inspect the properties of ideas and decisions.
+* **Decision Intelligence Hub**: Tracks architectural shifts and saves the source chat transcripts (evidences) and justifications (reasons) behind them.
 * **Workspace Dashboard**: Distills metrics on projects, ideas, decisions, and open questions, charting corpus growth over time.
-* **Data Ingestion System**: Accepts ChatGPT, Claude, and Gemini JSON exports, PDF documents, Markdown guides, and plain text notes, executing a multi-stage parser (Ingested ➔ Parsed ➔ Indexed ➔ Visualized).
-* **AI Knowledge Extraction Engine**: Extracts ideas, topics, decisions, chronological milestones, and tasks using OpenAI, Gemini, or local Ollama pipelines (with local smart mock fallbacks if offline).
-* **CogniLog Timeline Engine**: Visualizes project events chronologically (Creations, Pivots, Milestones, Blockers) using elegant, responsive line markers.
-* **Interactive Knowledge Graph**: Maps relationships using React Flow, letting users drag nodes, trace linkages, and inspect properties of Ideas, Decisions, and Milestones.
-* **Decision Intelligence Hub**: Tracks architectural shifts, justifications (reasons), and source transcripts (evidences).
-* **AI Historian**: Supports contextual chat questions, synthesizing records from document search matchings and graphs.
-* **Future Prediction Engine**: Suggests upcoming milestones, technical blockers, missing requirements, and similar cross-project development patterns.
+* **AI Historian**: Supports contextual chat questions, synthesizing records from document search matchings and graphs to answer questions like *"Why did we choose Postgres over MongoDB three months ago?"*
 
 ---
 
@@ -102,7 +103,7 @@ docker-compose up --build
 
 ## 🔌 Loading the Browser Extension (CogniLog Bridge)
 
-The CogniLog Bridge extension allows you to scrape active chats from ChatGPT, Claude, and Gemini web interfaces and sync them directly to your CogniLog workspaces.
+Because the primary focus is extracting knowledge from AI chats, the **CogniLog Bridge** browser extension is the easiest way to scrape active chats from ChatGPT, Claude, and Gemini web interfaces and sync them directly to your CogniLog workspaces.
 
 To install it:
 1. Open Google Chrome (or any Chromium browser) and navigate to `chrome://extensions/`.
