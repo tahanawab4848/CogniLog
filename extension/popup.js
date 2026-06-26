@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const previewWrap   = document.getElementById('preview-wrap');
   const previewEl     = document.getElementById('preview-container');
   const btnExtract    = document.getElementById('btn-extract');
+  const chatLimit     = document.getElementById('chat-limit');
   const btnSync       = document.getElementById('btn-sync');
   const syncLoader    = document.getElementById('sync-loader');
   const syncText      = document.getElementById('sync-text');
@@ -75,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function checkServer() {
-      const url = serverInput.value.trim();
+      const url = serverInput.value.trim().replace(/\/+$/, '');
       log(`Checking server: ${url}`);
       try {
         const controller = new AbortController();
@@ -132,7 +133,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const form = new FormData();
         form.append('username', email);
         form.append('password', pass);
-        const res = await fetch(`${serverInput.value.trim()}/api/v1/auth/login`, {
+        const sUrl = serverInput.value.trim().replace(/\/+$/, '');
+        const res = await fetch(`${sUrl}/api/v1/auth/login`, {
           method: 'POST', body: form,
         });
         const data = await res.json();
@@ -162,100 +164,47 @@ document.addEventListener('DOMContentLoaded', async () => {
       corpus = null;
       btnSync.disabled = true;
       btnExtract.disabled = true;
-      btnExtract.innerText = 'Extracting…';
+      btnExtract.innerText = 'Syncing in Background…';
       progressSec.style.display = 'block';
-      progressBar.style.width = '5%';
-      progressLabel.innerText = `Connecting to ${platform}…`;
+      progressBar.style.width = '10%';
+      progressLabel.innerText = `Command sent. You can safely close this window.`;
       previewWrap.style.display = 'none';
 
-      log(`Sending extractAllHistory to tab ${activeTab.id}`);
-      chrome.tabs.sendMessage(activeTab.id, { action: 'extractAllHistory' }, (response) => {
-        btnExtract.disabled = false;
-        btnExtract.innerText = `Extract from ${platform}`;
-        progressSec.style.display = 'none';
-
-        if (chrome.runtime.lastError) {
-          log('runtime.lastError: ' + chrome.runtime.lastError.message);
-          showLog();
-          return;
-        }
-        if (!response?.success) {
-          log('Extraction error: ' + response?.error);
-          showLog();
-          return;
-        }
-
-        corpus = response.conversations || [];
-        if (!corpus.length) {
-          log('No conversations found.');
-          showLog();
-          return;
-        }
-
-        const totalMsgs = corpus.reduce((s, c) => s + c.messages.length, 0);
-        scrapedCount.innerText = `${corpus.length} convos · ${totalMsgs} msgs`;
-        previewEl.innerHTML = corpus.slice(0, 8).map(c => `<div class="preview-row"><span class="tag tag-conv">${c.title.substring(0, 50)}</span></div>`).join('');
-        previewWrap.style.display = 'block';
-        btnSync.disabled = false;
-        log(`Extracted ${corpus.length} conversations OK`);
+      const fetchLimit = chatLimit ? parseInt(chatLimit.value || '999999') : 999999;
+      
+      log(`Triggering background sync for tab ${activeTab.id}`);
+      chrome.runtime.sendMessage({
+        action: 'startBackgroundSync',
+        tabId: activeTab.id,
+        platform: platform,
+        limit: fetchLimit,
+        serverUrl: serverInput.value.trim()
       });
     });
 
-    btnSync.addEventListener('click', async () => {
-      if (!corpus?.length) return;
-      btnSync.disabled = true;
-      syncLoader.style.display = 'inline-block';
-      syncText.innerText = 'Sending…';
-
-      try {
-        const payload = corpus.map(c => ({
-          uuid: c.id,
-          name: c.title,
-          created_at: c.created_at,
-          updated_at: c.updated_at,
-          chat_messages: c.messages.map(m => ({
-            sender: m.sender === 'user' ? 'human' : 'assistant',
-            text: m.text,
-            created_at: m.timestamp || null,
-          })),
-        }));
-
-        const jsonStr = JSON.stringify(payload, null, 2);
-        const filename = (chatTitle.value.trim() || 'history').replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.json';
-        const file = new File([jsonStr], filename, { type: 'application/json' });
-        
-        log(`Sync payload: ${filename} (${(jsonStr.length / 1024).toFixed(1)} KB)`);
-
-        if (!isOnline) {
-          log('Mock sync — server unreachable');
-          await new Promise(r => setTimeout(r, 1200));
-          log('Mock sync complete');
-        } else {
-          const form = new FormData();
-          form.append('file', file);
-          const res = await fetch(`${serverInput.value.trim()}/api/v1/intelligence/ingest`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: form,
-          });
-          
-          if (!res.ok) {
-            const body = await res.text();
-            throw new Error(`Server error ${res.status}: ${body}`);
-          }
-          const result = await res.json();
-          log(`✓ Synced! AI extracted ${result.decisions?.length} decisions.`);
-        }
-        showLog();
-      } catch (e) {
-        log('SYNC FAILED: ' + e.message);
-        showLog();
-      } finally {
-        btnSync.disabled = false;
-        syncLoader.style.display = 'none';
-        syncText.innerText = 'Send to Chronicle Inbox';
+    // Listen for completion if popup happens to stay open
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.action === 'syncComplete') {
+        progressLabel.innerText = `Sync complete!`;
+        btnExtract.innerText = 'Sync Complete';
+      } else if (msg.action === 'syncError') {
+        progressLabel.innerText = `Error: ${msg.error}`;
+        progressLabel.style.color = '#ef4444';
+        btnExtract.innerText = 'Extraction Failed';
       }
     });
+
+    // Clear Sync Cache
+    const btnClearSync = document.getElementById('btn-clear-sync');
+    if (btnClearSync) {
+      btnClearSync.addEventListener('click', async () => {
+        await chrome.storage.local.remove('synced_chat_ids');
+        log('Cleared local sync cache.');
+        btnClearSync.innerText = 'Cache Cleared!';
+        setTimeout(() => btnClearSync.innerText = 'Clear Local Sync Cache', 2000);
+      });
+    }
+
   } catch (globalErr) {
     log('GLOBAL ERROR: ' + globalErr.message);
     showLog();

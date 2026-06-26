@@ -14,6 +14,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     projects = relationship("Project", back_populates="owner")
+    sync_states = relationship("SyncState", back_populates="user", cascade="all, delete-orphan")
 
 class Project(Base):
     __tablename__ = "projects"
@@ -132,3 +133,15 @@ class OpenQuestion(Base):
     context = Column(Text, nullable=True)
 
     project = relationship("Project", back_populates="open_questions")
+
+class SyncState(Base):
+    __tablename__ = "sync_states"
+
+    id = Column(String(36), primary_key=True, index=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    platform = Column(String(50), nullable=False) # e.g., 'chatgpt', 'claude'
+    account_email = Column(String(255), nullable=True)
+    last_sync_timestamp = Column(DateTime, nullable=True)
+    last_synced_id = Column(String(255), nullable=True)
+
+    user = relationship("User", back_populates="sync_states")

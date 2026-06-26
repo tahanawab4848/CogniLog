@@ -43,7 +43,7 @@ export const Login: React.FC = () => {
       >
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary-400 via-accent-purple to-accent-cyan bg-clip-text text-transparent glow-text">
-            Project Chronicle
+            CogniLog
           </h1>
           <p className="text-slate-400 text-sm mt-2">
             AI Knowledge Evolution Engine
@@ -55,7 +55,7 @@ export const Login: React.FC = () => {
             <ShieldAlert size={16} className="shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold">Backend Offline</p>
-              <p className="mt-0.5 opacity-80">Chronicle is running in local Mock Mode. Any credentials will grant instant sandbox access.</p>
+              <p className="mt-0.5 opacity-80">CogniLog is running in local Mock Mode. Any credentials will grant instant sandbox access.</p>
             </div>
           </div>
         )}

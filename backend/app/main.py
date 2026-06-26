@@ -7,7 +7,7 @@ from app.services.vector_service import VectorService
 from app.services.graph_service import GraphService
 
 # Use Alembic for migrations instead of auto create
-# Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -26,6 +26,7 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

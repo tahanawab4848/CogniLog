@@ -26,14 +26,14 @@ You must return a valid JSON object matching the following structure:
   "project_name": "string",
   "ideas": [{"title": "string", "description": "string"}],
   "topics": [{"name": "string", "description": "string"}],
-  "decisions": [{"title": "string", "reason": "string", "evidence": "string", "status": "string", "date": "string"}],
-  "events": [{"title": "string", "description": "string", "event_type": "string", "date": "string"}],
-  "goals": [{"title": "string", "status": "string", "target_date": "string"}],
+  "decisions": [{"title": "string", "reason": "string", "evidence": "string", "status": "string", "date": "YYYY-MM-DD or null"}],
+  "events": [{"title": "string", "description": "string", "event_type": "string", "date": "YYYY-MM-DD or null"}],
+  "goals": [{"title": "string", "status": "string", "target_date": "YYYY-MM-DD or null"}],
   "tasks": [{"title": "string", "status": "string", "assignee": "string"}],
   "open_questions": [{"question": "string", "status": "string", "context": "string"}]
 }
 
-Ensure all dates are formatted as YYYY-MM-DD if possible, or simple textual approximations.
+Ensure all dates are STRICTLY formatted as YYYY-MM-DD strings. If the exact date is unknown or vague, use null. DO NOT use strings like "Unknown" or "Early 2023" because they will crash the database parser.
 """
 
 HISTORIAN_PROMPT = """
@@ -106,6 +106,16 @@ class AIService:
             return None
 
     @staticmethod
+    def _get_openrouter_client():
+        if not settings.OPENROUTER_API_KEY:
+            return None
+        try:
+            from openai import OpenAI
+            return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=settings.OPENROUTER_API_KEY)
+        except Exception:
+            return None
+
+    @staticmethod
     def _get_gemini_client():
         if not settings.GEMINI_API_KEY:
             return None
@@ -127,21 +137,42 @@ class AIService:
         if groq_client:
             try:
                 response = groq_client.chat.completions.create(
-                    model="llama3-70b-8192",
+                    model="llama-3.3-70b-versatile",
                     response_format={"type": "json_object"},
                     messages=[
                         {"role": "system", "content": EXTRACTION_PROMPT},
-                        {"role": "user", "content": content[:30000]} # truncate to fit 8K token context roughly
+                        {"role": "user", "content": content[:8000]} # strict truncate
                     ],
                     temperature=0.1
                 )
                 res_content = response.choices[0].message.content
                 cleaned = cls._clean_json_string(res_content)
-                return ExtractedKnowledge.model_validate_json(cleaned)
+                return cls._parse_and_validate(cleaned)
             except Exception as e:
                 logger.warning(f"Groq extraction failed, trying OpenAI. Error: {e}")
+                with open("ai_debug.log", "a", encoding="utf-8") as f: f.write(f"Groq Error: {e}\n")
 
-        # 2. Try OpenAI
+        # 2. Try OpenRouter (Massive Context)
+        openrouter_client = cls._get_openrouter_client()
+        if openrouter_client:
+            try:
+                response = openrouter_client.chat.completions.create(
+                    model="openai/gpt-4o-mini",
+                    response_format={"type": "json_object"},
+                    messages=[
+                        {"role": "system", "content": EXTRACTION_PROMPT},
+                        {"role": "user", "content": content[:120000]} # Massive 128k context window
+                    ],
+                    temperature=0.1
+                )
+                res_content = response.choices[0].message.content
+                cleaned = cls._clean_json_string(res_content)
+                return cls._parse_and_validate(cleaned)
+            except Exception as e:
+                logger.warning(f"OpenRouter extraction failed, trying OpenAI. Error: {e}")
+                with open("ai_debug.log", "a", encoding="utf-8") as f: f.write(f"OpenRouter Error: {e}\n")
+
+        # 3. Try OpenAI
         client = cls._get_openai_client()
         if client:
             try:
@@ -150,17 +181,18 @@ class AIService:
                     response_format={"type": "json_object"},
                     messages=[
                         {"role": "system", "content": EXTRACTION_PROMPT},
-                        {"role": "user", "content": content[:60000]} # truncate to fit context
+                        {"role": "user", "content": content[:60000]}
                     ],
                     temperature=0.1
                 )
                 res_content = response.choices[0].message.content
                 cleaned = cls._clean_json_string(res_content)
-                return ExtractedKnowledge.model_validate_json(cleaned)
+                return cls._parse_and_validate(cleaned)
             except Exception as e:
                 logger.warning(f"OpenAI extraction failed, trying Gemini. Error: {e}")
+                with open("ai_debug.log", "a", encoding="utf-8") as f: f.write(f"OpenAI Error: {e}\n")
 
-        # 2. Try Gemini
+        # 4. Try Gemini
         gemini = cls._get_gemini_client()
         if gemini:
             try:
@@ -168,11 +200,12 @@ class AIService:
                 prompt = EXTRACTION_PROMPT + "\n\nText to analyze:\n" + content
                 response = model.generate_content(prompt)
                 cleaned = cls._clean_json_string(response.text)
-                return ExtractedKnowledge.model_validate_json(cleaned)
+                return cls._parse_and_validate(cleaned)
             except Exception as e:
                 logger.warning(f"Gemini extraction failed, trying local Ollama. Error: {e}")
+                with open("ai_debug.log", "a", encoding="utf-8") as f: f.write(f"Gemini Error: {e}\n")
 
-        # 3. Try Ollama (local)
+        # 5. Try Ollama (local)
         try:
             import requests
             url = f"{settings.OLLAMA_BASE_URL}/api/generate"
@@ -187,13 +220,14 @@ class AIService:
             if response.status_code == 200:
                 res_data = response.json()
                 cleaned = cls._clean_json_string(res_data.get("response", "{}"))
-                return ExtractedKnowledge.model_validate_json(cleaned)
+                return cls._parse_and_validate(cleaned)
         except Exception as e:
             logger.warning(f"Ollama extraction failed. Error: {e}")
+            with open("ai_debug.log", "a", encoding="utf-8") as f: f.write(f"Ollama Error: {e}\n")
 
-        # 4. Final Fallback to Smart Mock
-        logger.info("All AI services unavailable or failed. Falling back to Smart Mock Engine.")
-        return cls._mock_knowledge_extraction(content)
+        # 6. Throw exception if all fail instead of silently mocking
+        logger.error("All AI services failed. Check ai_debug.log for details.")
+        raise Exception("AI Extraction Pipeline Failed across all providers. Check ai_debug.log")
 
     @classmethod
     def ask_historian(cls, project_name: str, query: str, decisions: List[Any], events: List[Any], questions: List[Any], raw_context: str) -> AskResponse:
@@ -217,7 +251,7 @@ class AIService:
             if groq_client:
                 try:
                     res = groq_client.chat.completions.create(
-                        model="llama3-70b-8192",
+                        model="llama-3.3-70b-versatile",
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.3
                     )
@@ -289,7 +323,7 @@ class AIService:
             if groq_client:
                 try:
                     res = groq_client.chat.completions.create(
-                        model="llama3-70b-8192",
+                        model="llama-3.3-70b-versatile",
                         response_format={"type": "json_object"},
                         messages=[{"role": "user", "content": prompt}],
                         temperature=0.2
@@ -314,6 +348,27 @@ class AIService:
 
         # Fallback
         return cls._mock_predictions(project_name, goals, tasks, decisions, questions)
+
+    @classmethod
+    def _parse_and_validate(cls, json_str: str) -> ExtractedKnowledge:
+        try:
+            data = json.loads(json_str)
+            # Force dates to None to prevent Pydantic datetime crashes if they aren't perfectly formatted
+            for key in ["decisions", "events"]:
+                for item in data.get(key, []):
+                    item["date"] = None
+            for item in data.get("goals", []):
+                item["target_date"] = None
+            
+            # Ensure required fields exist
+            if not data.get("project_name"):
+                data["project_name"] = "Chronicle Extraction"
+                
+            return ExtractedKnowledge(**data)
+        except Exception as e:
+            with open("ai_debug.log", "a", encoding="utf-8") as f:
+                f.write(f"JSON Parse/Validation Error: {e}\nRaw JSON:\n{json_str}\n\n")
+            raise
 
     @staticmethod
     def _clean_json_string(text: str) -> str:

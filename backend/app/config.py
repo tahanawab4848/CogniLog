@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     
     # AI Keys
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY", None)
+    OPENROUTER_API_KEY: Optional[str] = os.getenv("OPENROUTER_API_KEY", None)
     GEMINI_API_KEY: Optional[str] = os.getenv("GEMINI_API_KEY", None)
     GROQ_API_KEY: Optional[str] = os.getenv("GROQ_API_KEY", None)
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")

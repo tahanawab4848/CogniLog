@@ -141,6 +141,15 @@
     <input id="chat-title" type="text" placeholder="My ChatGPT History">
   </div>
 
+  <div class="fg">
+    <label>Extraction Limit</label>
+    <select id="chat-limit" style="width:100%; background:rgba(0,0,0,.3); border:1px solid var(--border); border-radius:6px; color:#fff; font-size:11px; padding:7px 9px; outline:none;">
+      <option value="50">Last 50 Chats (Fast)</option>
+      <option value="200">Last 200 Chats</option>
+      <option value="999999">All History (Slow)</option>
+    </select>
+  </div>
+
   <!-- Progress -->
   <div id="progress-section">
     <div class="progress-track"><div id="progress-bar"></div></div>
@@ -162,9 +171,9 @@
     <span id="sync-loader" class="loader" style="display:none"></span>
     <span id="sync-text">Send to Chronicle Inbox</span>
   </button>
-  <div style="font-size:9px;color:#475569;text-align:center;margin-top:5px">
     Data goes to your <strong style="color:#64748b">Chronicle Inbox</strong> — no project selection needed
   </div>
+  <button id="btn-clear-sync" class="btn btn-secondary mt8" style="background:transparent;border:1px solid #334155;color:#94a3b8;font-size:10px;padding:6px;">Clear Local Sync Cache</button>
 </div>
 
 <!-- Not on AI portal -->

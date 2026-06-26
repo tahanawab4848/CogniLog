@@ -18,31 +18,47 @@ function reportProgress(stage, fetched, total) {
 }
 
 // ─── ChatGPT Extractor ────────────────────────────────────────────────────────
-async function extractChatGPT() {
+async function extractChatGPT(fetchLimit = 999999, syncedIds = new Set()) {
   const ALL = [];
   let offset = 0;
-  const LIMIT = 28;          // ChatGPT's default page size
-  let totalExpected = 9999;
+  const LIMIT = 28;
 
   reportProgress('listing', 0, '?');
 
-  while (offset < totalExpected) {
+  let accessToken = '';
+  try {
+    const sessionRes = await fetch('https://chatgpt.com/api/auth/session', { credentials: 'include' });
+    const sessionData = await sessionRes.json();
+    accessToken = sessionData.accessToken || '';
+  } catch(e) {}
+
+  const headers = accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {};
+
+  let serverTotal = 999999;
+
+  while (ALL.length < fetchLimit && offset < serverTotal) {
     const res = await fetch(
       `https://chatgpt.com/backend-api/conversations?offset=${offset}&limit=${LIMIT}&order=updated`,
-      { credentials: 'include' }
+      { credentials: 'include', headers }
     );
     if (!res.ok) throw new Error(`ChatGPT API error ${res.status} — make sure you are logged in to ChatGPT.`);
     const data = await res.json();
 
-    totalExpected = data.total ?? (offset + (data.items?.length || 0));
-    const items   = data.items || [];
+    serverTotal = data.total || 999999;
+    const items = Array.isArray(data) ? data : (data.items || []);
     if (!items.length) break;
 
+    const displayTotal = Math.min(serverTotal, fetchLimit);
+
     for (const item of items) {
+      if (ALL.length >= fetchLimit) break;
+      
+      // Skip if already exported
+      if (syncedIds.has(item.id)) continue;
       try {
         const cRes = await fetch(
           `https://chatgpt.com/backend-api/conversation/${item.id}`,
-          { credentials: 'include' }
+          { credentials: 'include', headers }
         );
         if (!cRes.ok) continue;
         const conv = await cRes.json();
@@ -50,14 +66,15 @@ async function extractChatGPT() {
         ALL.push({
           id:         item.id,
           title:      item.title || 'Untitled',
-          created_at: item.create_time  ? new Date(item.create_time  * 1000).toISOString() : null,
-          updated_at: item.update_time  ? new Date(item.update_time  * 1000).toISOString() : null,
+          created_at: item.create_time  ? new Date(typeof item.create_time === 'number' ? item.create_time * 1000 : item.create_time).toISOString() : null,
+          updated_at: item.update_time  ? new Date(typeof item.update_time === 'number' ? item.update_time * 1000 : item.update_time).toISOString() : null,
           messages
         });
       } catch { /* skip failed individual convo */ }
-      reportProgress('fetching', ALL.length, totalExpected);
+      reportProgress('fetching', ALL.length, displayTotal);
       await sleep(80);
     }
+    if (ALL.length >= fetchLimit) break;
     offset += items.length;
     if (items.length < LIMIT) break;
   }
@@ -92,7 +109,7 @@ function flattenChatGPTMapping(mapping) {
           messages.push({
             sender:    role,
             text,
-            timestamp: msg.create_time ? new Date(msg.create_time * 1000).toISOString() : null
+            timestamp: msg.create_time ? new Date(typeof msg.create_time === 'number' ? msg.create_time * 1000 : msg.create_time).toISOString() : null
           });
         }
       }
@@ -105,7 +122,7 @@ function flattenChatGPTMapping(mapping) {
 }
 
 // ─── Claude Extractor ─────────────────────────────────────────────────────────
-async function extractClaude() {
+async function extractClaude(fetchLimit = 999999, syncedIds = new Set()) {
   const ALL = [];
 
   reportProgress('listing', 0, '?');
@@ -148,7 +165,7 @@ async function extractClaude() {
   if (!orgId) throw new Error('Could not find your Claude organisation ID. Make sure you are logged in at claude.ai.');
 
   // Step 2: list conversations
-  const listUrl = `https://claude.ai/api/organizations/${orgId}/chat_conversations?limit=100&sort=updated`;
+  const listUrl = `https://claude.ai/api/organizations/${orgId}/chat_conversations?limit=1000&sort=updated`;
   const listRes = await fetch(listUrl, { credentials: 'include' });
   if (!listRes.ok) throw new Error(`Claude conversation list API returned ${listRes.status}. Make sure you are on claude.ai and logged in.`);
 
@@ -156,12 +173,15 @@ async function extractClaude() {
   // API may return {conversations:[]} or directly an array
   if (!Array.isArray(convList)) convList = convList.conversations || convList.data || [];
 
-  const total = convList.length;
+  const total = Math.min(convList.length, fetchLimit);
   let fetched = 0;
 
   // Step 3: fetch each conversation's messages
   for (const conv of convList) {
+    if (ALL.length >= fetchLimit) break;
+    
     const convId = conv.uuid || conv.id;
+    if (syncedIds.has(convId)) continue;
     try {
       const cRes = await fetch(
         `https://claude.ai/api/organizations/${orgId}/chat_conversations/${convId}?tree=true&render_all_tools=true`,
@@ -238,10 +258,12 @@ async function extractGemini() {
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
   if (request.action === 'extractAllHistory') {
+    const fetchLimit = request.limit || 999999;
+    const syncedIds = new Set(request.syncedIds || []);
     const url = window.location.href;
     let extractor;
-    if (url.includes('chatgpt.com'))        extractor = extractChatGPT();
-    else if (url.includes('claude.ai'))     extractor = extractClaude();
+    if (url.includes('chatgpt.com'))        extractor = extractChatGPT(fetchLimit, syncedIds);
+    else if (url.includes('claude.ai'))     extractor = extractClaude(fetchLimit, syncedIds);
     else if (url.includes('gemini.google')) extractor = extractGemini();
     else {
       sendResponse({ success: false, error: 'Please navigate to ChatGPT, Claude, or Gemini first.' });

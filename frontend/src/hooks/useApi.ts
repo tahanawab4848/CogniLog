@@ -177,7 +177,7 @@ export const useApi = () => {
 
   // Check backend server presence
   useEffect(() => {
-    fetch(`${API_BASE_URL}/`)
+    fetch('http://localhost:8000/')
       .then(res => res.json())
       .then(() => setIsBackendConnected(true))
       .catch(() => {

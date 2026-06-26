@@ -8,7 +8,8 @@ to send extracted conversation history directly.
 
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 from app.database import get_db
 from app.auth import get_current_user
 from app.services.parser_service import ParserService
@@ -25,8 +26,8 @@ router = APIRouter(prefix="/intelligence", tags=["Intelligence"])
 # ─── POST /intelligence/ingest ────────────────────────────────────────────────
 @router.post("/ingest", response_model=schemas.ExtractedKnowledge)
 async def global_ingest(
-    project_id: str,
     file: UploadFile = File(...),
+    project_id: str = "inbox",
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -34,9 +35,18 @@ async def global_ingest(
     Ingestion endpoint used by the Chronicle Bridge browser extension.
     Accepts any supported file format (JSON chat export, TXT, MD, PDF).
     """
-    project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == current_user.id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Target Project not found")
+    project = None
+    if project_id != "inbox":
+        project = db.query(models.Project).filter(models.Project.id == project_id, models.Project.owner_id == current_user.id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Target Project not found")
+    else:
+        project = db.query(models.Project).filter(models.Project.name == "Chronicle Inbox", models.Project.owner_id == current_user.id).first()
+        if not project:
+            project = models.Project(name="Chronicle Inbox", owner_id=current_user.id, description="Default inbox for extension syncs")
+            db.add(project)
+            db.commit()
+            db.refresh(project)
 
     contents = await file.read()
     if not contents:
@@ -254,3 +264,76 @@ def personal_progress(
         "top_topics": [],
         "milestones": [],
     }
+
+
+# ─── GET & POST /intelligence/sync/state ──────────────────────────────────────
+@router.get("/sync/state")
+def get_sync_state(
+    platform: str,
+    account_email: Optional[str] = None,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get the last sync timestamp for a specific platform and account."""
+    query = db.query(models.SyncState).filter(
+        models.SyncState.user_id == current_user.id,
+        models.SyncState.platform == platform
+    )
+    if account_email:
+        query = query.filter(models.SyncState.account_email == account_email)
+    
+    state = query.first()
+    return {
+        "last_sync_timestamp": state.last_sync_timestamp.isoformat() if state and state.last_sync_timestamp else None,
+        "last_synced_id": state.last_synced_id if state else None
+    }
+
+@router.post("/sync/state")
+def update_sync_state(
+    body: dict,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update the sync state after a successful extraction batch."""
+    platform = body.get("platform")
+    account_email = body.get("account_email")
+    last_sync_timestamp_str = body.get("last_sync_timestamp")
+    last_synced_id = body.get("last_synced_id")
+
+    if not platform:
+        raise HTTPException(status_code=400, detail="platform is required")
+
+    state = db.query(models.SyncState).filter(
+        models.SyncState.user_id == current_user.id,
+        models.SyncState.platform == platform,
+        models.SyncState.account_email == account_email
+    ).first()
+
+    last_sync_timestamp = None
+    if last_sync_timestamp_str:
+        try:
+            # Handle ISO format strings safely
+            parsed_dt = datetime.fromisoformat(last_sync_timestamp_str.replace('Z', '+00:00'))
+            # SQLite stores naive datetimes. To prevent "can't compare offset-naive and offset-aware datetimes" error:
+            last_sync_timestamp = parsed_dt.replace(tzinfo=None)
+        except ValueError:
+            pass
+
+    if not state:
+        state = models.SyncState(
+            user_id=current_user.id,
+            platform=platform,
+            account_email=account_email,
+            last_sync_timestamp=last_sync_timestamp,
+            last_synced_id=last_synced_id
+        )
+        db.add(state)
+    else:
+        # Only update if the new timestamp is newer (or if we didn't have one)
+        if last_sync_timestamp and (not state.last_sync_timestamp or last_sync_timestamp > state.last_sync_timestamp):
+            state.last_sync_timestamp = last_sync_timestamp
+        if last_synced_id:
+            state.last_synced_id = last_synced_id
+
+    db.commit()
+    return {"status": "success"}
