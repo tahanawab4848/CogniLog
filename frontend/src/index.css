@@ -2,111 +2,160 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =============================================
+   EMERALD OS — Design System
+   All theme colors live here as CSS variables.
+   Change them here to retheme the entire app.
+   ============================================= */
+:root {
+  /* Backgrounds — Deep Navy Blues */
+  --bg-void:    #04080f;   /* Deepest navy-black */
+  --bg-base:    #070e1a;   /* Page background */
+  --bg-surface: #0b1628;   /* Card / panel background */
+  --bg-raised:  #0f2040;   /* Hover / elevated surface */
+
+  /* Accent colors — Sea Green + Sky Blue */
+  --accent:     #14b8a6;   /* Sea Green / Teal — primary accent */
+  --accent-2:   #38bdf8;   /* Sky Blue — secondary accent */
+  --accent-dim: rgba(20, 184, 166, 0.12);
+  
+  /* Borders */
+  --border:        rgba(20, 184, 166, 0.18);
+  --border-hover:  rgba(56, 189, 248, 0.5);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+
+  /* Text */
+  --text-primary: #e2f8f6;   /* Near-white with sea green tint */
+  --text-muted:   #5b8fa8;   /* Muted blue-grey */
+  --text-dim:     #2a4a60;   /* Very dim */
+}
+
 @layer base {
   body {
-    background-color: #080b11;
-    color: #e2e8f0;
-    font-family: 'Outfit', 'Inter', sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, sans-serif;
+    overflow: hidden;
   }
 
-  /* Custom glass scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.02);
-  }
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.08);
+  ::-webkit-scrollbar { width: 0px; height: 0px; }
+
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: var(--border-subtle);
     border-radius: 4px;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(99, 102, 241, 0.3);
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--accent-dim);
+    border-radius: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(16, 185, 129, 0.3);
   }
 }
 
-/* Custom premium styling classes */
-.glass-panel {
-  background: rgba(17, 24, 39, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+@layer components {
+  /* === CORE CARD === */
+  .bento-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .bento-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: 0 0 30px rgba(16,185,129,0.08);
+  }
+
+  /* === GLASS PANEL (used in older components) === */
+  .glass-panel {
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+  }
+  .glass-input {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 0.5rem;
+    outline: none;
+  }
+  .glass-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(16,185,129,0.15);
+  }
+
+  /* === ACCENT BADGE === */
+  .badge-accent {
+    background: var(--accent-dim);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.5rem;
+    border-radius: 9999px;
+  }
+
+  /* === TERMINAL MONO TEXT === */
+  .terminal-text {
+    @apply font-mono text-[11px] tracking-widest uppercase;
+  }
 }
 
-.glass-panel-glow {
-  background: rgba(17, 24, 39, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4), 0 0 15px 0 rgba(99, 102, 241, 0.1);
-}
-
-.glass-input {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.2s ease;
-}
-.glass-input:focus {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(99, 102, 241, 0.5);
-  outline: none;
-  box-shadow: 0 0 10px 0 rgba(99, 102, 241, 0.15);
-}
-
-.glow-text {
-  text-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
-}
-
-/* React Flow customizations */
-.react-flow__renderer {
-  background-color: #070a0f !important;
-}
-
+/* =============================================
+   REACT FLOW — Emerald OS
+   ============================================= */
+.react-flow__renderer { background-color: var(--bg-void) !important; }
 .react-flow__handle {
   width: 8px !important;
   height: 8px !important;
-  background: #6366f1 !important;
-  border: 2px solid #080b11 !important;
+  background: var(--accent) !important;
+  border: 2px solid var(--bg-void) !important;
 }
-
 .react-flow__edge-path {
-  stroke: rgba(255, 255, 255, 0.15) !important;
+  stroke: var(--border) !important;
   stroke-width: 2px !important;
-  transition: stroke 0.2s ease;
 }
-
 .react-flow__edge.selected .react-flow__edge-path {
-  stroke: #8b5cf6 !important;
+  stroke: var(--accent-2) !important;
   stroke-width: 3px !important;
 }
-
 .react-flow__controls {
   box-shadow: none !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid var(--border) !important;
+  background: var(--bg-surface) !important;
 }
-
 .react-flow__controls-button {
-  background: #111827 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  fill: #e2e8f0 !important;
+  background: var(--bg-surface) !important;
+  border-bottom: 1px solid var(--border) !important;
+  fill: var(--text-primary) !important;
 }
-
-.react-flow__controls-button:hover {
-  background: rgba(99, 102, 241, 0.2) !important;
-}
+.react-flow__controls-button:hover { background: var(--bg-raised) !important; }
 
 .custom-flow-node {
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
   width: 200px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  transition: all 0.2s ease;
 }
-.custom-flow-node:hover {
-  transform: translateY(-2px);
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
+.custom-flow-node:hover { border-color: var(--border-hover); }
+
+/* =============================================
+   ANIMATIONS
+   ============================================= */
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+@layer utilities {
+  .animate-fade-in-up { animation: fadeInUp 0.3s ease-out forwards; }
 }

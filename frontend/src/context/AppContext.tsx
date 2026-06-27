@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useApi } from '../hooks/useApi';
 
 export type ViewType =
+  | 'home'         // Main Landing Dashboard
   | 'hub'          // Intelligence Hub (global overview)
   | 'import'       // Ingest conversations
   | 'categories'   // Auto-discovered categories
@@ -9,7 +10,10 @@ export type ViewType =
   | 'graph'        // Global knowledge graph
   | 'analyst'      // AI Analyst (ask anything)
   | 'decisions'    // All decisions extracted
-  | 'progress';    // Personal growth & progress analytics
+  | 'progress'     // Personal growth & progress analytics
+  | 'chats'        // Raw conversation list
+  | 'coach'        // Prompt Coach
+  | 'devlab';      // Developer Lab
 
 interface GlobalStats {
   totalConversations: number;
@@ -53,7 +57,7 @@ const AppContext = createContext<AppContextProps | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const api = useApi();
-  const [activeView, setActiveView] = useState<ViewType>('hub');
+  const [activeView, setActiveView] = useState<ViewType>('home');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!api.token);
   const [globalStats, setGlobalStats] = useState<GlobalStats>(DEFAULT_STATS);
@@ -111,7 +115,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIsLoggedIn(false);
     setGlobalStats(DEFAULT_STATS);
     setCategories([]);
-    setActiveView('hub');
+    setActiveView('home');
   };
 
   return (

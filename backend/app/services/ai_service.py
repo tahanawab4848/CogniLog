@@ -59,6 +59,27 @@ Raw Context Snippet: {raw_context}
 Query: {query}
 """
 
+PROMPT_COACH_PROMPT = """
+You are an expert AI Prompt Engineer and Coach.
+Your task is to analyze a list of prompts written by a user and evaluate their prompt engineering skills.
+
+Look for common anti-patterns such as:
+1. Vagueness (e.g., "fix this", "do it better")
+2. Lack of context (assuming the AI knows what file/project is being worked on)
+3. Missing constraints (not specifying output format, length, or tone)
+4. Over-complication (giving contradictory instructions)
+
+Return a JSON object with the following structure:
+{
+  "score": integer (0-100 rating of their overall prompt quality),
+  "critique": "string (2-3 sentences explaining their biggest weakness or anti-pattern)",
+  "worst_prompt": "string (the exact text of their worst prompt from the provided list)",
+  "improved_prompt": "string (how a senior prompt engineer would have written their worst prompt)",
+  "exercise_title": "string (A catchy title for a small exercise to practice)",
+  "exercise_description": "string (A 1-2 sentence challenge asking them to rewrite a vague prompt into a highly contextual one. Provide a bad prompt and ask them how they would fix it.)"
+}
+"""
+
 PREDICTION_PROMPT = """
 Analyze the subject history, key conclusions, open questions, and objectives.
 Predict the following:
@@ -97,11 +118,20 @@ class AIService:
 
     @staticmethod
     def _get_groq_client():
-        if not settings.GROQ_API_KEY:
+        import random
+        keys = []
+        if settings.GROQ_API_KEYS:
+            keys = [k.strip() for k in settings.GROQ_API_KEYS.split(",") if k.strip()]
+        if not keys and settings.GROQ_API_KEY:
+            keys = [settings.GROQ_API_KEY]
+            
+        if not keys:
             return None
+            
+        selected_key = random.choice(keys)
         try:
             from openai import OpenAI
-            return OpenAI(base_url="https://api.groq.com/openai/v1", api_key=settings.GROQ_API_KEY)
+            return OpenAI(base_url="https://api.groq.com/openai/v1", api_key=selected_key)
         except Exception:
             return None
 
@@ -474,3 +504,58 @@ The system recently completed its core database setup. The initial commit regist
                 "Standard monorepo scaling issues solved by containerizing services in Docker Compose."
             ]
         )
+
+    @classmethod
+    def analyze_prompts(cls, prompts: List[str]) -> dict:
+        """Analyzes a list of user prompts to grade prompt engineering skills."""
+        if settings.FORCE_MOCK_AI or not prompts:
+            return {
+                "score": 65,
+                "critique": "You often ask for code fixes without providing the surrounding context or specifying constraints, which forces the AI to guess your intentions.",
+                "worst_prompt": prompts[0] if prompts else "fix the bug in my code",
+                "improved_prompt": "I am working on a React application. Here is my current component: [Code]. I am getting an 'undefined' error on line 12. Please fix it and explain why it happened.",
+                "exercise_title": "Context is King",
+                "exercise_description": "Rewrite this prompt: 'make this button look better' into a prompt that includes context, framework, and design aesthetics."
+            }
+
+        prompt_data = "\n".join([f"- {p}" for p in prompts])
+        user_message = f"Please evaluate these recent prompts I wrote:\n\n{prompt_data}"
+        messages = [
+            {"role": "system", "content": PROMPT_COACH_PROMPT},
+            {"role": "user", "content": user_message}
+        ]
+
+        try:
+            groq_client = cls._get_groq_client()
+            if groq_client:
+                response = groq_client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    response_format={"type": "json_object"},
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=1000,
+                )
+            else:
+                client = cls._get_openai_client() or cls._get_openrouter_client()
+                if not client:
+                    raise Exception("No AI client available to analyze prompts.")
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    response_format={"type": "json_object"},
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=1000,
+                )
+                
+            raw_content = response.choices[0].message.content
+            return json.loads(raw_content)
+        except Exception as e:
+            logger.error(f"Prompt Coach Error: {str(e)}")
+            return {
+                "score": 0,
+                "critique": f"Failed to analyze prompts due to an API error: {str(e)}",
+                "worst_prompt": "N/A",
+                "improved_prompt": "N/A",
+                "exercise_title": "Error",
+                "exercise_description": "Please try again or check the backend logs."
+            }

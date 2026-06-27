@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (url.includes('chatgpt.com')) platform = 'ChatGPT';
         else if (url.includes('claude.ai')) platform = 'Claude';
         else if (url.includes('gemini.google.com')) platform = 'Gemini';
+        else if (url.includes('deepseek.com')) platform = 'DeepSeek';
       }
       if (platform) {
         cardNoPortal.style.display = 'none';

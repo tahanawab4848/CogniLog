@@ -649,6 +649,33 @@ export const useApi = () => {
     return res.json();
   };
 
+  const getPromptCoachAnalysis = async () => {
+    if (isBackendConnected === false) {
+      return {
+        score: 42,
+        critique: "Your prompts often lack specific constraints, leaving the AI to guess the format you want.",
+        worst_prompt: "write a python script to parse data",
+        improved_prompt: "Write a Python 3 script using the standard library to parse a CSV file of sales data and output a JSON list of dictionaries.",
+        exercise_title: "Adding Constraints",
+        exercise_description: "Rewrite this prompt: 'make me a logo' to include constraints for colors, style, and file format."
+      };
+    }
+    const res = await fetch(`${API_BASE_URL}/intelligence/prompt-coach`, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Could not fetch prompt coach analysis');
+    return res.json();
+  };
+
+  const getIndividualChats = async () => {
+    if (isBackendConnected === false) {
+      return [
+        { id: '1', title: 'Example Chat', preview: 'This is a mock chat preview...', date: new Date().toISOString() }
+      ];
+    }
+    const res = await fetch(`${API_BASE_URL}/intelligence/chats`, { headers: getHeaders() });
+    if (!res.ok) throw new Error('Could not fetch individual chats');
+    return res.json();
+  };
+
   return {
     token,
     isBackendConnected,
@@ -672,6 +699,8 @@ export const useApi = () => {
     getCategoryDetails,
     askGlobalAnalyst,
     getPersonalProgress,
+    getIndividualChats,
+    getPromptCoachAnalysis,
   };
 };
 

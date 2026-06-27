@@ -125,6 +125,18 @@ def global_overview(
         for p in db.query(models.Project).filter(models.Project.owner_id == current_user.id).all()
     ]
 
+    if not user_project_ids:
+        return {
+            "totalConversations": 0,
+            "totalMessages": 0,
+            "totalDecisions": 0,
+            "totalInsights": 0,
+            "totalQuestions": 0,
+            "topicsDiscovered": 0,
+            "analysisProgress": 0,
+            "lastAnalyzed": None,
+        }
+
     total_conversations = db.query(models.Document).filter(
         models.Document.project_id.in_(user_project_ids)
     ).count()
@@ -164,6 +176,9 @@ def get_categories(
         p.id
         for p in db.query(models.Project).filter(models.Project.owner_id == current_user.id).all()
     ]
+    if not user_project_ids:
+        return []
+
     topics = (
         db.query(models.Topic)
         .filter(models.Topic.project_id.in_(user_project_ids))
@@ -182,6 +197,109 @@ def get_categories(
     return list(category_map.values())
 
 
+# ─── GET /intelligence/chats ───────────────────────────────────────────────
+@router.get("/chats")
+def global_chats(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Extract individual chat titles and excerpts from the raw documents."""
+    user_project_ids = [
+        p.id
+        for p in db.query(models.Project).filter(models.Project.owner_id == current_user.id).all()
+    ]
+    if not user_project_ids:
+        return []
+    
+    docs = db.query(models.Document).filter(models.Document.project_id.in_(user_project_ids)).all()
+    chats = []
+    
+    import re
+    for doc in docs:
+        if not doc.content: continue
+        
+        # Determine platform
+        platform = "Unknown"
+        name_lower = doc.name.lower() if doc.name else ""
+        if "deepseek" in name_lower:
+            platform = "DeepSeek"
+        elif "chatgpt" in name_lower:
+            platform = "ChatGPT"
+        elif "claude" in name_lower:
+            platform = "Claude"
+        elif "gemini" in name_lower:
+            platform = "Gemini"
+        elif "sync_chunk" in name_lower:
+            platform = "ChatGPT" # Legacy sync chunks were mostly ChatGPT
+            
+        parts = re.split(r'=== CONVERSATION: (.*?) ===', doc.content)
+        if len(parts) > 1:
+            for i in range(1, len(parts), 2):
+                title = parts[i].strip()
+                content = parts[i+1].strip() if i+1 < len(parts) else ""
+                preview = content[:150].replace('\n', ' ') + "..."
+                chats.append({
+                    "id": f"{doc.id}_{i}",
+                    "title": title,
+                    "preview": preview,
+                    "platform": platform,
+                    "date": str(doc.created_at)[:19]
+                })
+        else:
+            chats.append({
+                "id": str(doc.id),
+                "title": doc.name,
+                "preview": doc.content[:150].replace('\n', ' ') + "...",
+                "platform": platform,
+                "date": str(doc.created_at)[:19]
+            })
+            
+    chats.sort(key=lambda x: x["date"], reverse=True)
+    return chats
+
+# ─── GET /intelligence/prompt-coach ───────────────────────────────────────────────
+@router.get("/prompt-coach")
+def get_prompt_coach_analysis(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Extracts recent user prompts and evaluates them using the AI Prompt Coach."""
+    user_project_ids = [
+        p.id for p in db.query(models.Project).filter(models.Project.owner_id == current_user.id).all()
+    ]
+    if not user_project_ids:
+        return AIService.analyze_prompts([])
+
+    # Get the 10 most recent documents
+    docs = db.query(models.Document)\
+             .filter(models.Document.project_id.in_(user_project_ids))\
+             .order_by(models.Document.created_at.desc())\
+             .limit(10)\
+             .all()
+             
+    import re
+    import random
+    
+    user_prompts = []
+    
+    for doc in docs:
+        if not doc.content: continue
+        # Extract everything following [USER]: up to the next newline or tag
+        matches = re.findall(r'\[USER\]: (.*?)(?=\n\[|$)', doc.content, re.DOTALL)
+        for match in matches:
+            text = match.strip()
+            if text and len(text) > 20: # ignore very short inputs like "continue"
+                user_prompts.append(text[:500]) # cap length
+                
+    if not user_prompts:
+        return AIService.analyze_prompts([])
+        
+    # Pick a random sample of 5-8 prompts to avoid overloading the AI
+    sample_size = min(len(user_prompts), random.randint(5, 8))
+    sampled_prompts = random.sample(user_prompts, sample_size)
+    
+    return AIService.analyze_prompts(sampled_prompts)
+
 # ─── GET /intelligence/timeline ───────────────────────────────────────────────
 @router.get("/timeline")
 def global_timeline(
@@ -192,6 +310,9 @@ def global_timeline(
         p.id
         for p in db.query(models.Project).filter(models.Project.owner_id == current_user.id).all()
     ]
+    if not user_project_ids:
+        return []
+
     events = (
         db.query(models.Event)
         .filter(models.Event.project_id.in_(user_project_ids))
@@ -224,17 +345,33 @@ def global_ask(
         for p in db.query(models.Project).filter(models.Project.owner_id == current_user.id).all()
     ]
     context_chunks: List[str] = []
-    for pid in user_project_ids:
-        results = VectorService.query_similar(query, project_id=pid, top_k=3)
-        context_chunks.extend(results)
+    if user_project_ids:
+        for pid in user_project_ids:
+            results = VectorService.search_semantic(project_id=pid, query=query, limit=3)
+            context_chunks.extend([r["content"] for r in results])
+            
+        decisions = db.query(models.Decision).filter(models.Decision.project_id.in_(user_project_ids)).all()
+        events = db.query(models.Event).filter(models.Event.project_id.in_(user_project_ids)).all()
+        questions = db.query(models.OpenQuestion).filter(models.OpenQuestion.project_id.in_(user_project_ids)).all()
+    else:
+        decisions = []
+        events = []
+        questions = []
 
     from app.services.ai_service import AIService
-    answer = AIService.answer_question(query, "\n\n".join(context_chunks))
+    response = AIService.ask_historian(
+        project_name="Global Knowledge Base",
+        query=query,
+        decisions=decisions,
+        events=events,
+        questions=questions,
+        raw_context="\n\n".join(context_chunks)
+    )
 
     return {
-        "answer": answer,
-        "sources": [f"Project {pid}" for pid in user_project_ids[:3]],
-        "key_decisions": [],
+        "answer": response.answer,
+        "sources": [f"Project {pid}" for pid in user_project_ids[:3]] + response.sources,
+        "key_decisions": response.key_decisions,
     }
 
 
@@ -249,6 +386,16 @@ def personal_progress(
         p.id
         for p in db.query(models.Project).filter(models.Project.owner_id == current_user.id).all()
     ]
+    if not user_project_ids:
+        return {
+            "knowledge_score": 0,
+            "total_insights": 0,
+            "resolved_questions": 0,
+            "growth_chart": [{"date": "Now", "count": 0}],
+            "top_topics": [],
+            "milestones": [],
+        }
+
     total_docs = db.query(models.Document).filter(
         models.Document.project_id.in_(user_project_ids)
     ).count()

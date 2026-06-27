@@ -2,31 +2,34 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useApi } from '../hooks/useApi';
 import {
-  Brain, MessageSquare, Lightbulb, Gavel,
-  HelpCircle, Tag, TrendingUp, Upload,
-  ArrowRight, Zap, Clock, CheckCircle2
+  Brain, MessageSquare, Gavel,
+  HelpCircle, Tag, Upload,
+  ArrowRight, Zap, Trophy, CheckCircle2
 } from 'lucide-react';
 
-const StatCard: React.FC<{
-  icon: React.ReactNode; label: string; value: string | number;
-  sub?: string; color: string; onClick?: () => void;
-}> = ({ icon, label, value, sub, color, onClick }) => (
-  <div
-    onClick={onClick}
-    className={`glass-panel p-5 rounded-2xl flex flex-col gap-3 relative overflow-hidden
-      ${onClick ? 'cursor-pointer hover:border-slate-600 transition-all duration-200 hover:scale-[1.01]' : ''}`}
-  >
-    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
-      {icon}
-    </div>
-    <div>
-      <div className="text-2xl font-black text-white tracking-tight">{value}</div>
-      <div className="text-xs font-semibold text-slate-400 mt-0.5">{label}</div>
-      {sub && <div className="text-[10px] text-slate-600 mt-1">{sub}</div>}
-    </div>
-    <div className={`absolute -bottom-4 -right-4 w-20 h-20 rounded-full opacity-10 blur-xl ${color}`} />
-  </div>
-);
+const V = {
+  accent:    'var(--accent)',
+  accent2:   'var(--accent-2)',
+  accentDim: 'var(--accent-dim)',
+  surface:   'var(--bg-surface)',
+  raised:    'var(--bg-raised)',
+  border:    'var(--border)',
+  muted:     'var(--text-muted)',
+  text:      'var(--text-primary)',
+  dim:       'var(--text-dim)',
+};
+
+const getInsightBadge = (text: string) => {
+  const base = 'px-1.5 py-0.5 rounded-sm text-[9px] uppercase tracking-widest mr-2 font-bold shrink-0 border';
+  const t = text.toLowerCase();
+  if (t.includes('decision') || t.includes('resolved'))
+    return <span className={base} style={{ background: V.accentDim, color: V.accent, borderColor: V.border }}>DECISION</span>;
+  if (t.includes('question') || t.includes('ask'))
+    return <span className={base} style={{ background: 'rgba(45,212,191,0.1)', color: V.accent2, borderColor: 'rgba(45,212,191,0.2)' }}>QUESTION</span>;
+  if (t.includes('failed') || t.includes('error'))
+    return <span className={base} style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', borderColor: 'rgba(239,68,68,0.2)' }}>ALERT</span>;
+  return <span className={base} style={{ background: V.accentDim, color: V.accent, borderColor: V.border }}>INFO</span>;
+};
 
 export const IntelligenceHub: React.FC = () => {
   const { globalStats, categories, setActiveView } = useApp();
@@ -48,192 +51,143 @@ export const IntelligenceHub: React.FC = () => {
   const hasData = globalStats.totalConversations > 0;
 
   return (
-    <div className="flex-1 p-8 overflow-y-auto max-h-screen bg-[#060910]">
-      {/* Ambient glows */}
-      <div className="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-primary-600/8 rounded-full blur-[120px]" />
-      <div className="pointer-events-none fixed bottom-10 right-10 w-[400px] h-[400px] bg-accent-purple/5 rounded-full blur-[100px]" />
-
-      {/* Header */}
-      <div className="mb-10 relative">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="p-2.5 bg-gradient-to-br from-primary-600/30 to-accent-purple/20 rounded-xl border border-primary-500/20">
-            <Brain size={22} className="text-primary-400" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-white">
-              Intelligence Hub
-            </h1>
-            <p className="text-slate-400 text-sm mt-0.5">
-              Your complete AI conversation knowledge — auto-analyzed, categorized, and evolving.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Empty state — prompt to import */}
-      {!hasData && !loading && (
-        <div className="max-w-2xl mx-auto mt-16 text-center">
-          <div className="glass-panel p-12 rounded-2xl border border-dashed border-slate-700">
-            <div className="w-20 h-20 bg-gradient-to-br from-primary-600/20 to-accent-purple/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-primary-500/20">
-              <Upload size={36} className="text-primary-400" />
-            </div>
-            <h2 className="text-xl font-black text-white mb-3">No conversations analyzed yet</h2>
-            <p className="text-slate-400 text-sm leading-relaxed mb-8 max-w-md mx-auto">
-              Import your complete ChatGPT, Claude, or Gemini history using the Chronicle Bridge
-              browser extension or upload exported files. The AI will automatically categorize
-              everything and build your personal knowledge map.
+    <div className="flex-1 w-full h-full p-6 pb-32 overflow-y-auto custom-scrollbar">
+      {!hasData && !loading ? (
+        <div className="w-full h-full flex flex-col items-center justify-center">
+          <div className="bento-card p-12 text-center max-w-xl">
+            <Upload size={32} className="mx-auto mb-6" style={{ color: V.muted }} />
+            <h2 className="text-2xl font-bold mb-3 tracking-tight">System Empty</h2>
+            <p className="text-sm mb-8 leading-relaxed" style={{ color: V.muted }}>
+              Upload your intelligence logs to begin automated graph structuring.
             </p>
             <button
               onClick={() => setActiveView('import')}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-accent-purple text-white text-sm font-bold rounded-xl hover:opacity-90 transition"
+              className="px-6 py-3 font-semibold rounded-xl text-sm transition-transform hover:scale-105 active:scale-95"
+              style={{ background: V.accent, color: 'var(--bg-void)' }}
             >
-              <Upload size={16} /> Import Conversations <ArrowRight size={14} />
+              Import Data
             </button>
           </div>
         </div>
-      )}
+      ) : (
+        <div className="max-w-[1600px] mx-auto min-h-full grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-6 auto-rows-min pb-12">
 
-      {hasData && (
-        <>
-          {/* Analysis progress bar */}
-          {globalStats.analysisProgress < 100 && (
-            <div className="glass-panel p-4 rounded-xl mb-8 flex items-center gap-4">
-              <div className="p-2 bg-primary-600/20 rounded-lg">
-                <Zap size={16} className="text-primary-400 animate-pulse" />
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-xs font-semibold text-white">AI Analysis in Progress</span>
-                  <span className="text-xs text-primary-400 font-bold">{globalStats.analysisProgress}%</span>
-                </div>
-                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-primary-600 to-accent-purple rounded-full transition-all duration-700"
-                    style={{ width: `${globalStats.analysisProgress}%` }}
-                  />
-                </div>
-              </div>
-              <span className="text-[10px] text-slate-500">Extracting entities…</span>
+          {/* Header Bento */}
+          <div
+            className="bento-card col-span-1 md:col-span-4 lg:col-span-8 p-6 md:p-10 flex flex-col justify-between relative overflow-hidden group cursor-pointer"
+            onClick={() => setActiveView('progress')}
+          >
+            <div className="relative z-10">
+              <h1 className="text-4xl md:text-5xl lg:text-7xl font-black tracking-tighter mb-4" style={{ color: V.accent }}>
+                Intelligence Hub
+              </h1>
+              <p className="text-sm md:text-base max-w-xl leading-relaxed" style={{ color: V.muted }}>
+                Your neural architecture is continuously evolving. Total extraction mapping is active.
+              </p>
             </div>
-          )}
-
-          {/* Stats grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-            <StatCard
-              icon={<MessageSquare size={18} />}
-              label="Conversations"
-              value={globalStats.totalConversations.toLocaleString()}
-              sub={`${globalStats.totalMessages.toLocaleString()} total messages`}
-              color="bg-blue-500/20 text-blue-400"
-            />
-            <StatCard
-              icon={<Tag size={18} />}
-              label="Topics Discovered"
-              value={globalStats.topicsDiscovered}
-              sub="Auto-categorized by AI"
-              color="bg-accent-purple/20 text-accent-purple"
-              onClick={() => setActiveView('categories')}
-            />
-            <StatCard
-              icon={<Gavel size={18} />}
-              label="Decisions Extracted"
-              value={globalStats.totalDecisions.toLocaleString()}
-              sub="Across all conversations"
-              color="bg-emerald-500/20 text-emerald-400"
-              onClick={() => setActiveView('decisions')}
-            />
-            <StatCard
-              icon={<HelpCircle size={18} />}
-              label="Open Questions"
-              value={globalStats.totalQuestions.toLocaleString()}
-              sub="Unresolved topics"
-              color="bg-amber-500/20 text-amber-400"
-            />
+            {globalStats.analysisProgress < 100 && (
+              <div className="mt-8 md:mt-12 rounded-2xl p-4 flex items-center gap-4 md:gap-6 relative z-10"
+                style={{ background: V.raised, border: `1px solid ${V.border}` }}>
+                <div className="flex items-center gap-2 text-[10px] md:text-xs font-bold uppercase tracking-widest" style={{ color: V.muted }}>
+                  <Zap size={14} className="animate-pulse" style={{ color: V.accent }} /> Processing
+                </div>
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: V.border }}>
+                  <div className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${globalStats.analysisProgress}%`, background: V.accent }} />
+                </div>
+                <span className="terminal-text text-[10px] md:text-[11px]" style={{ color: V.accent }}>{globalStats.analysisProgress}%</span>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Top Categories */}
-            <div className="lg:col-span-2 glass-panel p-6 rounded-2xl">
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Tag size={15} className="text-accent-purple" /> Top Categories
-                </h3>
-                <button
-                  onClick={() => setActiveView('categories')}
-                  className="text-xs text-primary-400 hover:text-primary-300 flex items-center gap-1 transition"
-                >
-                  View all <ArrowRight size={12} />
-                </button>
-              </div>
-              <div className="space-y-3">
-                {categories.slice(0, 6).map((cat) => {
-                  const pct = Math.round((cat.count / Math.max(...categories.map((c: any) => c.count))) * 100);
-                  return (
-                    <div
-                      key={cat.id}
-                      onClick={() => setActiveView('categories')}
-                      className="flex items-center gap-3 cursor-pointer group"
-                    >
-                      <span className="text-lg w-7 flex-shrink-0">{cat.icon}</span>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition">
-                            {cat.name}
-                          </span>
-                          <span className="text-[10px] text-slate-500">{cat.count} convos</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{
-                              width: `${pct}%`,
-                              background: cat.color || 'linear-gradient(to right, #6366f1, #8b5cf6)'
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Activity Feed */}
-            <div className="glass-panel p-6 rounded-2xl flex flex-col">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-5">
-                <Clock size={15} className="text-primary-400" /> Recent Insights
-              </h3>
-              <div className="flex-1 space-y-3 overflow-y-auto">
-                {activity.length > 0 ? activity.map((item, i) => (
-                  <div key={i} className="flex gap-2.5 text-xs">
-                    <CheckCircle2 size={13} className="text-primary-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-slate-400 leading-relaxed">{item}</p>
+          {/* Quick Stats Bento */}
+          <div className="bento-card col-span-1 md:col-span-4 lg:col-span-4 p-6 md:p-8 grid grid-cols-2 gap-4 md:gap-8 relative overflow-hidden">
+            {[
+              { Icon: MessageSquare, count: globalStats.totalConversations, label: 'Chats',     view: null },
+              { Icon: Gavel,         count: globalStats.totalDecisions,     label: 'Decisions', view: 'decisions' },
+              { Icon: HelpCircle,    count: globalStats.totalQuestions,     label: 'Open Qs',   view: null },
+              { Icon: Tag,           count: globalStats.topicsDiscovered,   label: 'Topics',    view: 'categories' },
+            ].map(({ Icon, count, label, view }) => (
+              <div key={label}
+                className={`flex flex-col justify-between group ${view ? 'cursor-pointer' : 'cursor-default'}`}
+                onClick={() => view && setActiveView(view as any)}
+              >
+                <Icon size={20} style={{ color: V.dim }} className="mb-2" />
+                <div>
+                  <div className="text-3xl md:text-4xl font-bold tracking-tighter mb-1" style={{ color: V.text }}>{count}</div>
+                  <div className="text-[10px] md:text-xs uppercase tracking-widest font-semibold flex items-center gap-1" style={{ color: V.muted }}>
+                    {label} {view && <ArrowRight size={10}/>}
                   </div>
-                )) : (
-                  <p className="text-slate-600 text-xs italic">No recent activity.</p>
-                )}
+                </div>
               </div>
+            ))}
+          </div>
 
-              {/* Quick actions */}
-              <div className="mt-5 pt-4 border-t border-darkBorder space-y-2">
-                {[
-                  { label: 'Explore Timeline', view: 'timeline' as const, icon: <TrendingUp size={12} /> },
-                  { label: 'Ask AI Analyst', view: 'analyst' as const, icon: <Brain size={12} /> },
-                  { label: 'View Progress', view: 'progress' as const, icon: <Lightbulb size={12} /> },
-                ].map(action => (
-                  <button
-                    key={action.view}
-                    onClick={() => setActiveView(action.view)}
-                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-white hover:bg-slate-800/50 transition group"
-                  >
-                    <span className="flex items-center gap-2">{action.icon} {action.label}</span>
-                    <ArrowRight size={11} className="opacity-0 group-hover:opacity-100 transition" />
-                  </button>
-                ))}
-              </div>
+          {/* Topics Distribution Bento */}
+          <div className="bento-card col-span-1 md:col-span-2 lg:col-span-6 p-8 flex flex-col h-full min-h-[400px]">
+            <div className="flex items-center justify-between mb-8 shrink-0">
+              <h3 className="text-lg font-bold tracking-tight">Category Distribution</h3>
+              <button onClick={() => setActiveView('categories')}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                style={{ background: V.raised, border: `1px solid ${V.border}` }}>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+            <div className="flex-1 flex flex-col justify-center space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+              {categories.slice(0, 5).map((cat, idx) => {
+                const pct = Math.round((cat.count / Math.max(...categories.map((c: any) => c.count))) * 100);
+                return (
+                  <div key={cat.id} className="group cursor-pointer" onClick={() => setActiveView('categories')}>
+                    <div className="flex justify-between items-center mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl w-10 h-10 rounded-full flex items-center justify-center border transition-all group-hover:scale-110"
+                          style={{ background: V.raised, borderColor: V.border }}>{cat.icon}</span>
+                        <span className="font-semibold" style={{ color: V.text }}>{cat.name}</span>
+                      </div>
+                      <span className="font-mono" style={{ color: V.muted }}>{cat.count}</span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: 'var(--border-subtle)' }}>
+                      <div className="h-full rounded-full transition-all duration-700 origin-left"
+                        style={{ transform: `scaleX(${pct / 100})`, background: V.accent, transitionDelay: `${idx * 50}ms` }} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </>
+
+          {/* Activity Feed Bento */}
+          <div className="bento-card col-span-1 md:col-span-2 lg:col-span-6 p-8 flex flex-col h-full min-h-[400px]">
+            <div className="flex items-center justify-between mb-8 shrink-0">
+              <h3 className="text-lg font-bold tracking-tight">Neural Activity</h3>
+              <div className="badge-accent flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: V.accent }}/> Live
+              </div>
+            </div>
+            <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
+              {activity.length > 0 ? activity.map((item, i) => (
+                <div key={i} className="flex gap-4 p-4 rounded-2xl transition-all cursor-default"
+                  style={{ background: V.raised, border: `1px solid ${V.border}` }}>
+                  <div className="w-10 h-10 shrink-0 rounded-full flex items-center justify-center border"
+                    style={{ background: V.accentDim, borderColor: V.border, color: V.accent }}>
+                    {item.toLowerCase().includes('decision') ? <Gavel size={16}/> :
+                     item.toLowerCase().includes('question') ? <HelpCircle size={16}/> : <CheckCircle2 size={16}/>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium leading-relaxed line-clamp-2" style={{ color: V.text }}>{item}</p>
+                    <span className="text-[10px] uppercase tracking-widest font-bold mt-2 block" style={{ color: V.muted }}>
+                      {i === 0 ? 'Just now' : `${i * 12} mins ago`}
+                    </span>
+                  </div>
+                </div>
+              )) : (
+                <div className="flex-1 flex items-center justify-center text-sm italic border border-dashed rounded-2xl"
+                  style={{ color: V.muted, borderColor: V.border }}>Waiting for incoming signals...</div>
+              )}
+            </div>
+          </div>
+
+        </div>
       )}
     </div>
   );

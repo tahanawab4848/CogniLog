@@ -254,6 +254,38 @@ async function extractGemini() {
   return [{ id: 'gemini-' + Date.now(), title, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), messages }];
 }
 
+// ─── DeepSeek Extractor (DOM-based) ─────────────────────────────────────────────
+async function extractDeepSeek() {
+  reportProgress('fetching', 0, 1);
+  const title = document.title || 'DeepSeek Session';
+  const messages = [];
+  
+  // DeepSeek heavily obfuscates classes, so we extract all substantial text blocks
+  // and send them to the backend AI to parse contextually.
+  const nodes = document.querySelectorAll('p, pre, span, div, li');
+  let blocks = [];
+  
+  nodes.forEach(el => {
+    // Only capture elements that don't wrap other major block elements
+    if (el.children.length > 0 && Array.from(el.children).some(c => ['DIV','P','PRE','UL','TABLE'].includes(c.tagName))) return;
+    
+    const txt = el.textContent?.trim();
+    // Filter out very short strings (like sidebar UI buttons) and duplicates
+    if (txt && txt.length > 15 && !blocks.includes(txt)) {
+      blocks.push(txt);
+    }
+  });
+
+  if (blocks.length > 0) {
+      const fullText = blocks.join('\n\n');
+      messages.push({ sender: 'user', text: fullText, timestamp: null });
+  }
+
+  if (!messages.length) throw new Error('No DeepSeek messages found. Open a specific conversation, ensure messages are visible, and try again.');
+
+  return [{ id: 'deepseek-' + Date.now(), title, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), messages }];
+}
+
 // ─── Message listener ─────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
 
@@ -265,8 +297,9 @@ chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
     if (url.includes('chatgpt.com'))        extractor = extractChatGPT(fetchLimit, syncedIds);
     else if (url.includes('claude.ai'))     extractor = extractClaude(fetchLimit, syncedIds);
     else if (url.includes('gemini.google')) extractor = extractGemini();
+    else if (url.includes('deepseek'))      extractor = extractDeepSeek();
     else {
-      sendResponse({ success: false, error: 'Please navigate to ChatGPT, Claude, or Gemini first.' });
+      sendResponse({ success: false, error: 'Please navigate to ChatGPT, Claude, Gemini, or DeepSeek first.' });
       return true;
     }
 

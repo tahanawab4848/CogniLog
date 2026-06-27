@@ -52,7 +52,7 @@ async function startBackgroundSync(opts) {
         // Tab closed or content script not injected
         chrome.action.setBadgeText({ text: 'ERR' });
         chrome.action.setBadgeBackgroundColor({ color: '#ef4444' });
-        chrome.runtime.sendMessage({ action: 'syncError', error: 'Content script disconnected. Please REFRESH the ChatGPT/Claude page and try again.' }).catch(() => {});
+        chrome.runtime.sendMessage({ action: 'syncError', error: 'Content script disconnected. Please REFRESH the ChatGPT/Claude/DeepSeek page and try again.' }).catch(() => {});
       }
     });
   } catch(e) {
@@ -99,7 +99,7 @@ async function handleExtractComplete(corpus) {
       const jsonStr = JSON.stringify(payload);
       const blob = new Blob([jsonStr], { type: 'application/json' });
       const form = new FormData(); 
-      form.append('file', blob, `sync_chunk_${i}.json`);
+      form.append('file', blob, `${platform || 'unknown'}_sync_chunk_${i}.json`);
       
       const res = await fetch(`${baseUrl}/api/v1/intelligence/ingest?project_id=inbox`, {
         method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: form

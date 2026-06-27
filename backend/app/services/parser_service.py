@@ -39,10 +39,13 @@ class ParserService:
             transcript.append(f"=== CONVERSATION: {title} ===")
             
             mapping = convo.get("mapping", {})
-            # Sort mapping nodes chronologically if possible, or just extract human-assistant pairings
             for node_id, node in mapping.items():
                 message = node.get("message")
-                if message and message.get("content"):
+                if not message:
+                    continue
+                    
+                # Standard ChatGPT format
+                if message.get("content"):
                     author = message.get("author", {}).get("role", "system")
                     content_parts = message.get("content", {}).get("parts", [])
                     content_str = ""
@@ -53,6 +56,17 @@ class ParserService:
                             content_str += json.dumps(part)
                     if content_str.strip():
                         transcript.append(f"[{author.upper()}]: {content_str.strip()}")
+                        
+                # DeepSeek format (fragments)
+                elif message.get("fragments"):
+                    fragments = message.get("fragments", [])
+                    for frag in fragments:
+                        frag_type = frag.get("type", "system").lower()
+                        # DeepSeek uses REQUEST (user) and RESPONSE (assistant)
+                        author = "user" if frag_type == "request" else "assistant"
+                        content_str = frag.get("content", "")
+                        if content_str.strip():
+                            transcript.append(f"[{author.upper()}]: {content_str.strip()}")
             transcript.append("\n")
             
         return "\n".join(transcript)
